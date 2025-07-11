@@ -63,7 +63,7 @@ You haven't started MoonES as root.
 
 ### Requirements
 1. LuaJIT 2.1 or later.
-2. Xcode 11 or later.
+2. Xcode 12.2 or later.
 
 ### Building
 1. Replace [src/embedded.provisionprofile](src/embedded.provisionprofile) with your Provisioning Profile.
