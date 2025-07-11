@@ -63,7 +63,7 @@ $(TMP_DIR)/EndpointSecurity.i: $(SRC_DIR)/EndpointSecurity.h | $(TMP_DIR)
 	'$(CC)' -E -o'$@' '$<'
 
 $(TMP_DIR)/cdef.i: $(TMP_DIR)/EndpointSecurity.i
-	cat '$<' | grep -Ev '^#' | tr '\n' '\t' | sed -E -e 's/extern [^;]+;//g' -e 's/static const [^;]+;//g' -e 's/static inline [^}]+}//g' | tr '\t' '\n' | grep -Ev '^$$' | sed -E -e 's/enum : [^ ]+/enum/g' -e 's/\(\^/(*/g' -e 's/ _N(onnull|ullable) / /g' -e 's/__attribute__\s*\(\(.+\)\)\s*//g' > '$@'
+	cat '$<' | grep -Ev '^#' | tr '\n' '\t' | sed -E -e 's/extern [^;]+;//g' -e 's/static const [^;]+;//g' -e 's/static inline [^}]+}//g' | tr '\t' '\n' | grep -Ev '^$$' | sed -E -e 's/enum : [^ ]+/enum/g' -e 's/\(\^/(*/g' -e 's/([ *])_N(onnull|ullable) /\1 /g' -e 's/__attribute__\s*\(\(.+\)\)\s*//g' > '$@'
 
 $(TMP_DIR)/cdef.h: $(TMP_DIR)/cdef.i $(TMP_DIR)/0
 	cat $(patsubst %,'%',$(subst ','"'"',$^)) | xxd -i -n 'cdef_i' -u | sed -E -e 's/ 0X/ 0x/g' -e 's/([0-9A-F])$$/\1,/g' -e 's/^unsigned char /const char /g' -e '/^unsigned int /d' > '$@'
