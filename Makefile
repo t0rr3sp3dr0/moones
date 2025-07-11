@@ -67,7 +67,7 @@ $(TMP_DIR)/Info.plist: $(SRC_DIR)/Info.plist | $(TMP_DIR)
 	PlistBuddy -c 'Add :NSHumanReadableCopyright string "$(BUNDLE_COPYRIGHT)"' '$@!'
 	mv -f '$@'{'!',''}
 
-$(TMP_DIR)/$(BUNDLE_NAME).entitlements: $(SRC_DIR)/$(BUNDLE_NAME).entitlements | $(TMP_DIR)
+$(TMP_DIR)/$(BUNDLE_NAME).entitlements: $(SRC_DIR)/entitlements.plist | $(TMP_DIR)
 	cp -f '$<' '$@!'
 	PlistBuddy -c 'Add :com.apple.application-identifier string "$(APPLICATION_IDENTIFIER)"' '$@!'
 	mv -f '$@'{'!',''}
