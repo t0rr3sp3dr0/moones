@@ -27,8 +27,13 @@ SDK_PATH                 ?= $(shell xcrun --show-sdk-path)
 EMBEDDED_PLIST         ?= $(shell openssl smime -verify -noverify -inform 'der' -in '$(SRC_DIR)/embedded.provisionprofile')
 APPLICATION_IDENTIFIER ?= $(shell PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
 TEAM_IDENTIFIER        ?= $(shell PlistBuddy -c 'Print :Entitlements:com.apple.developer.team-identifier' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
+PROFILE_NAME           ?= $(shell PlistBuddy -c 'Print :Name' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
+TEAM_NAME              ?= $(shell PlistBuddy -c 'Print :TeamName' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
 
-BUNDLE_NAME      ?= $(shell PlistBuddy -c 'Print :CFBundleName' '$(SRC_DIR)/Info.plist')
+BUNDLE_NAME       ?= $(PROFILE_NAME)
+BUNDLE_IDENTIFIER ?= $(shell cut -d '.' -f '2-' <<< '$(APPLICATION_IDENTIFIER)')
+BUNDLE_COPYRIGHT  ?= $(shell date +'© %Y $(TEAM_NAME). All rights reserved.')
+
 KEYCHAIN_PROFILE ?= $(TEAM_IDENTIFIER)
 SIGNING_IDENTITY ?= $(TEAM_IDENTIFIER)
 
@@ -53,6 +58,14 @@ $(LIB_DIR)/%.dylib: /usr/local/lib/%.dylib | $(LIB_DIR)
 
 $(TMP_DIR)/0: | $(TMP_DIR)
 	printf '\0' > '$@'
+
+$(TMP_DIR)/Info.plist: $(SRC_DIR)/Info.plist | $(TMP_DIR)
+	cp -f '$<' '$@!'
+	PlistBuddy -c 'Add :CFBundleExecutable string "$(BUNDLE_NAME)"' '$@!'
+	PlistBuddy -c 'Add :CFBundleIdentifier string "$(BUNDLE_IDENTIFIER)"' '$@!'
+	PlistBuddy -c 'Add :CFBundleName string "$(BUNDLE_NAME)"' '$@!'
+	PlistBuddy -c 'Add :NSHumanReadableCopyright string "$(BUNDLE_COPYRIGHT)"' '$@!'
+	mv -f '$@'{'!',''}
 
 $(TMP_DIR)/$(BUNDLE_NAME).entitlements: $(SRC_DIR)/$(BUNDLE_NAME).entitlements | $(TMP_DIR)
 	cp -f '$<' '$@!'
@@ -87,7 +100,7 @@ $(TMP_DIR)/libluajit-5.1.2.dylib: $(LIB_DIR)/libluajit-5.1.2.dylib | $(TMP_DIR)
 	'$(CODESIGN)' -s '$(SIGNING_IDENTITY)' -f '$@!'
 	mv -f '$@'{'!',''}
 
-$(TMP_DIR)/$(BUNDLE_NAME).app/Contents/Info.plist: $(SRC_DIR)/Info.plist | $(TMP_DIR)/$(BUNDLE_NAME).app/Contents
+$(TMP_DIR)/$(BUNDLE_NAME).app/Contents/Info.plist: $(TMP_DIR)/Info.plist | $(TMP_DIR)/$(BUNDLE_NAME).app/Contents
 	cp -f '$<' '$@'
 
 $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/embedded.provisionprofile: $(SRC_DIR)/embedded.provisionprofile | $(TMP_DIR)/$(BUNDLE_NAME).app/Contents

@@ -66,7 +66,6 @@ You haven't started MoonES as root.
 2. Xcode 11 or later.
 
 ### Building
-1. Update [src/Info.plist](src/Info.plist) with your Bundle Identifier.
-2. Replace [src/embedded.provisionprofile](src/embedded.provisionprofile) with your Provisioning Profile.
-3. Optionally, create [.env](.env) and define `DISABLE_NOTARIZATION` to disable notarization or `SIGNING_IDENTITY` to override the signing identity.
-4. Run `make`.
+1. Replace [src/embedded.provisionprofile](src/embedded.provisionprofile) with your Provisioning Profile.
+2. Optionally, create [.env](.env) and define `DISABLE_NOTARIZATION` to disable notarization or `SIGNING_IDENTITY` to override the signing identity.
+3. Run `make`.
