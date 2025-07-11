@@ -24,11 +24,11 @@ ARCHES                   ?= $(shell '$(LIPO)' -detailed_info '$(LIB_DIR)/libluaj
 MACOSX_DEPLOYMENT_TARGET ?= 10.15
 SDK_PATH                 ?= $(shell xcrun --show-sdk-path)
 
-EMBEDDED_PLIST         ?= $(shell openssl smime -verify -noverify -inform 'der' -in '$(SRC_DIR)/embedded.provisionprofile')
-APPLICATION_IDENTIFIER ?= $(shell PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
-TEAM_IDENTIFIER        ?= $(shell PlistBuddy -c 'Print :Entitlements:com.apple.developer.team-identifier' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
-PROFILE_NAME           ?= $(shell PlistBuddy -c 'Print :Name' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
-TEAM_NAME              ?= $(shell PlistBuddy -c 'Print :TeamName' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
+EMBEDDED_PLIST         := $(shell openssl smime -verify -noverify -inform 'der' -in '$(SRC_DIR)/embedded.provisionprofile')
+APPLICATION_IDENTIFIER := $(shell PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
+TEAM_IDENTIFIER        := $(shell PlistBuddy -c 'Print :Entitlements:com.apple.developer.team-identifier' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
+PROFILE_NAME           := $(shell PlistBuddy -c 'Print :Name' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
+TEAM_NAME              := $(shell PlistBuddy -c 'Print :TeamName' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
 
 BUNDLE_NAME       ?= $(PROFILE_NAME)
 BUNDLE_IDENTIFIER ?= $(shell cut -d '.' -f '2-' <<< '$(APPLICATION_IDENTIFIER)')
