@@ -24,8 +24,9 @@ ARCHES                   ?= $(shell '$(LIPO)' -detailed_info '$(LIB_DIR)/libluaj
 MACOSX_DEPLOYMENT_TARGET ?= 10.15
 SDK_PATH                 ?= $(shell xcrun --show-sdk-path)
 
-EMBEDDED_PLIST  ?= $(shell openssl smime -verify -noverify -inform 'der' -in '$(SRC_DIR)/embedded.provisionprofile')
-TEAM_IDENTIFIER ?= $(shell PlistBuddy -c 'Print :Entitlements:com.apple.developer.team-identifier' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
+EMBEDDED_PLIST         ?= $(shell openssl smime -verify -noverify -inform 'der' -in '$(SRC_DIR)/embedded.provisionprofile')
+APPLICATION_IDENTIFIER ?= $(shell PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
+TEAM_IDENTIFIER        ?= $(shell PlistBuddy -c 'Print :Entitlements:com.apple.developer.team-identifier' '/dev/stdin' <<< '$(EMBEDDED_PLIST)')
 
 BUNDLE_NAME      ?= $(shell PlistBuddy -c 'Print :CFBundleName' '$(SRC_DIR)/Info.plist')
 KEYCHAIN_PROFILE ?= $(TEAM_IDENTIFIER)
@@ -53,6 +54,11 @@ $(LIB_DIR)/%.dylib: /usr/local/lib/%.dylib | $(LIB_DIR)
 $(TMP_DIR)/0: | $(TMP_DIR)
 	printf '\0' > '$@'
 
+$(TMP_DIR)/$(BUNDLE_NAME).entitlements: $(SRC_DIR)/$(BUNDLE_NAME).entitlements | $(TMP_DIR)
+	cp -f '$<' '$@!'
+	PlistBuddy -c 'Add :com.apple.application-identifier string "$(APPLICATION_IDENTIFIER)"' '$@!'
+	mv -f '$@'{'!',''}
+
 $(TMP_DIR)/EndpointSecurity.i: $(SRC_DIR)/EndpointSecurity.h | $(TMP_DIR)
 	'$(CC)' -E -o'$@' '$<'
 
@@ -71,9 +77,9 @@ $(TMP_DIR)/prelude.h: $(TMP_DIR)/prelude.luac
 $(SRC_DIR)/lua.c: $(TMP_DIR)/cdef.h $(TMP_DIR)/prelude.h
 	touch '$@'
 
-$(TMP_DIR)/$(BUNDLE_NAME): $(SRC_DIR)/main.c $(SRC_DIR)/lua.h $(SRC_DIR)/lua.c $(SRC_DIR)/defer.h $(LIB_DIR)/libluajit-5.1.2.dylib $(INC_DIR)/lualib.h $(INC_DIR)/luajit.h $(INC_DIR)/luaconf.h $(INC_DIR)/lua.h $(INC_DIR)/lauxlib.h | $(TMP_DIR)
+$(TMP_DIR)/$(BUNDLE_NAME): $(SRC_DIR)/main.c $(SRC_DIR)/lua.h $(SRC_DIR)/lua.c $(SRC_DIR)/defer.h $(LIB_DIR)/libluajit-5.1.2.dylib $(INC_DIR)/lualib.h $(INC_DIR)/luajit.h $(INC_DIR)/luaconf.h $(INC_DIR)/lua.h $(INC_DIR)/lauxlib.h $(TMP_DIR)/$(BUNDLE_NAME).entitlements | $(TMP_DIR)
 	'$(CC)' -I'$(INC_DIR)' -L'$(LIB_DIR)' -O'2' -W'all' -W'error' -W'extra' -W'pedantic' $(patsubst %,-arch '%',$(ARCHES)) -isysroot '$(SDK_PATH)' -l'luajit-5.1.2' -l'EndpointSecurity' -mmacosx-version-min='$(MACOSX_DEPLOYMENT_TARGET)' -o'$@!' $(patsubst %,'%',$(subst ','"'"',$(filter %.c,$^)))
-	'$(CODESIGN)' -s '$(SIGNING_IDENTITY)' --entitlements '$(SRC_DIR)/$(BUNDLE_NAME).entitlements' -o 'runtime' --runtime-version '$(MACOSX_DEPLOYMENT_TARGET)' -f '$@!'
+	'$(CODESIGN)' -s '$(SIGNING_IDENTITY)' --entitlements '$(TMP_DIR)/$(BUNDLE_NAME).entitlements' -o 'runtime' --runtime-version '$(MACOSX_DEPLOYMENT_TARGET)' -f '$@!'
 	mv -f '$@'{'!',''}
 
 $(TMP_DIR)/libluajit-5.1.2.dylib: $(LIB_DIR)/libluajit-5.1.2.dylib | $(TMP_DIR)
@@ -90,14 +96,14 @@ $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/embedded.provisionprofile: $(SRC_DIR)/emb
 $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/Frameworks/libluajit-5.1.2.dylib: $(TMP_DIR)/libluajit-5.1.2.dylib | $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/Frameworks
 	cp -f '$<' '$@'
 
-$(TMP_DIR)/$(BUNDLE_NAME).app/Contents/MacOS/$(BUNDLE_NAME): $(TMP_DIR)/$(BUNDLE_NAME) | $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/MacOS
+$(TMP_DIR)/$(BUNDLE_NAME).app/Contents/MacOS/$(BUNDLE_NAME): $(TMP_DIR)/$(BUNDLE_NAME) $(TMP_DIR)/$(BUNDLE_NAME).entitlements | $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/MacOS
 	cp -f '$<' '$@!'
 	'$(INSTALL_NAME_TOOL)' -add_rpath '@loader_path/../Frameworks' -change '/usr/local/lib/libluajit-5.1.2.dylib' '@rpath/libluajit-5.1.2.dylib' '$@!'
-	'$(CODESIGN)' -s '$(SIGNING_IDENTITY)' --entitlements '$(SRC_DIR)/$(BUNDLE_NAME).entitlements' -o 'runtime' --runtime-version '$(MACOSX_DEPLOYMENT_TARGET)' -f '$@!'
+	'$(CODESIGN)' -s '$(SIGNING_IDENTITY)' --entitlements '$(TMP_DIR)/$(BUNDLE_NAME).entitlements' -o 'runtime' --runtime-version '$(MACOSX_DEPLOYMENT_TARGET)' -f '$@!'
 	mv -f '$@'{'!',''}
 
-$(TMP_DIR)/$(BUNDLE_NAME).app/Contents/_CodeSignature/CodeResources: $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/Info.plist $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/embedded.provisionprofile $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/Frameworks/libluajit-5.1.2.dylib $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/MacOS/$(BUNDLE_NAME)
-	'$(CODESIGN)' -s '$(SIGNING_IDENTITY)' --entitlements '$(SRC_DIR)/$(BUNDLE_NAME).entitlements' -o 'runtime' --runtime-version '$(MACOSX_DEPLOYMENT_TARGET)' -f '$(patsubst %/,%,$(dir $(patsubst %/,%,$(dir $(patsubst %/,%,$(dir $@))))))'
+$(TMP_DIR)/$(BUNDLE_NAME).app/Contents/_CodeSignature/CodeResources: $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/Info.plist $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/embedded.provisionprofile $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/Frameworks/libluajit-5.1.2.dylib $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/MacOS/$(BUNDLE_NAME) $(TMP_DIR)/$(BUNDLE_NAME).entitlements
+	'$(CODESIGN)' -s '$(SIGNING_IDENTITY)' --entitlements '$(TMP_DIR)/$(BUNDLE_NAME).entitlements' -o 'runtime' --runtime-version '$(MACOSX_DEPLOYMENT_TARGET)' -f '$(patsubst %/,%,$(dir $(patsubst %/,%,$(dir $(patsubst %/,%,$(dir $@))))))'
 
 ifdef DISABLE_NOTARIZATION
 $(OUT_DIR)/$(BUNDLE_NAME).app: $(TMP_DIR)/$(BUNDLE_NAME).app/Contents/_CodeSignature/CodeResources | $(OUT_DIR)
